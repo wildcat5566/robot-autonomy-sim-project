@@ -29,8 +29,9 @@ def sample_normal_pose(pos_scale, rot_scale):
 class RandomAgent:
 
     def act(self, obs):
-        delta_pos = [(np.random.rand() * 2 - 1) * 0.005, 0, 0]
-        delta_quat = [0, 0, 0, 1] # xyzw
+        delta_pos = [0, 0, 0] #(np.random.rand() * 2 - 1) * 0.005
+        #delta_quat = [0, -0.005, 0,  0.9999875 ] # xyzw
+        delta_quat = [0, 0, 0, 1]
         gripper_pos = [np.random.rand() > 0.5]
         return delta_pos + delta_quat + gripper_pos
 
@@ -66,19 +67,22 @@ class NoisyObjectPoseSensor:
 if __name__ == "__main__":
     action_mode = ActionMode(ArmActionMode.DELTA_EE_POSE) # See rlbench/action_modes.py for other action modes
     env = Environment(action_mode, '', ObservationConfig(), False)
-    task = env.get_task(StackBlocks) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
+    task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
     agent = RandomAgent()
     obj_pose_sensor = NoisyObjectPoseSensor(env)
    
     descriptions, obs = task.reset()
     print(descriptions)
+    count = 0
     while True:
         # Getting noisy object poses
         obj_poses = obj_pose_sensor.get_poses()
+        #print(obj_poses)
 
         # Getting various fields from obs
         current_joints = obs.joint_positions
         gripper_pose = obs.gripper_pose
+        print(gripper_pose)
         rgb = obs.wrist_rgb
         depth = obs.wrist_depth
         mask = obs.wrist_mask
