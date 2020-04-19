@@ -29,9 +29,8 @@ def sample_normal_pose(pos_scale, rot_scale):
 class RandomAgent:
 
     def act(self, obs):
-        delta_pos = [0, 0, 0] #(np.random.rand() * 2 - 1) * 0.005
-        #delta_quat = [0, -0.005, 0,  0.9999875 ] # xyzw
-        delta_quat = [0, 0, 0, 1]
+        delta_pos = [(np.random.rand() * 2 - 1) * 0.005, 0, 0] #
+        delta_quat = [0, 0, 0, 1]# xyzw
         gripper_pos = [np.random.rand() > 0.5]
         return delta_pos + delta_quat + gripper_pos
 
