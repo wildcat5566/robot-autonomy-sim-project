@@ -19,7 +19,6 @@ from rlbench.backend.spawn_boundary import SpawnBoundary
     'sugar',
 ]"""
 GROCERY_NAMES=[
-    'chocolate jello',
     'soup',
     'coffee',
     'sugar',
@@ -36,7 +35,11 @@ class PutGroceriesInCupboard(Task):
         self.waypoint1 = Dummy('waypoint1')
         self.register_graspable_objects(self.groceries)
         self.boundary = SpawnBoundary([Shape('workspace')])
-        self.Angela = Shape('Angela')
+
+        self.gutter = Shape('gutter')
+        self.eastwall = Shape('eastwall')
+        self.northwall = Shape('northwall')
+        self.southwall = Shape('southwall')
 
     def init_episode(self, index: int) -> List[str]:
         self.boundary.clear()
