@@ -26,9 +26,10 @@ def sample_normal_pose(pos_scale, rot_scale):
 	pos = np.random.normal(scale=pos_scale)
 		
 	eps = skew(np.random.normal(scale=rot_scale))
+	r = sp.linalg.expm(eps)
 	R = sp.linalg.expm(eps)
 	quat_wxyz = from_rotation_matrix(R)
-
+	# quat_wxyz = R.from_matrix(r).as_quat()
 	return pos, quat_wxyz
 
 
@@ -63,6 +64,9 @@ class NoisyObjectPoseSensor:
 		for obj in objs:
 			name = obj.get_name()
 			pose = obj.get_pose()
+
+			if name == "cupboard":
+				obj.set_pose(np.array([-1.80274546e-02,-5.56744277e-01,1.3,-4.58377297e-04,7.25377322e-06,7.07106650e-01,7.07106769e-01]))
 
 			pos, quat_wxyz = sample_normal_pose(self._pos_scale, self._rot_scale)
 			gt_quat_wxyz = quaternion(pose[6], pose[3], pose[4], pose[5])
@@ -180,7 +184,7 @@ def execute_path(path):
 
 if __name__ == "__main__":
 	action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION) # See rlbench/action_modes.py for other action modes
-	env = Environment(action_mode, '', ObservationConfig(), False)
+	env = Environment(action_mode, '', ObservationConfig(), False, static_positions=True)
 	task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
 	agent = RandomAgent()
 	obj_pose_sensor = NoisyObjectPoseSensor(env)
@@ -190,6 +194,7 @@ if __name__ == "__main__":
 	waypoint = "soup_grasp_point"
 
 	descriptions, obs = task.reset()
+	boundary_root = env._scene._active_task.boundary_root()
 
 	starting_pose = obs.gripper_pose
 	pos0 = starting_pose[:3]
