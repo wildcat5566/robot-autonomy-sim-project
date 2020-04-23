@@ -189,10 +189,6 @@ if __name__ == "__main__":
 
 	waypoint = "soup_grasp_point"
 
-	
-
-	
-
 	descriptions, obs = task.reset()
 
 	starting_pose = obs.gripper_pose
