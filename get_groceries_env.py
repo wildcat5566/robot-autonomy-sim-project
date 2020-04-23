@@ -41,6 +41,9 @@ class NoisyObjectPoseSensor:
         
         return obj_poses
 
+class StepFailedError(Exception):
+    pass
+
 class GroceriesEnvironment():
     '''
     Sets up the abstracted environment for the task Put Groceries in Cupboard
@@ -57,7 +60,8 @@ class GroceriesEnvironment():
 
         # task setup
         self.task = self.environment.get_task(task)
-        self. desc, self.obs = self.task.reset()[1]
+        self.obs  = None
+        self.objects = None
 
         # pose sensor setup
         self.pose_sensor = NoisyObjectPoseSensor(self.environment)
@@ -70,13 +74,19 @@ class GroceriesEnvironment():
         self.visualize = False
         self.print_debug = False
 
+        # task information
+        self.state       = 'initialize'
+        self.objects_left_to_pick = self.objects
+        self.objects_picked_
+
     def initialize(self):
-        '''Initialize something'''
-        pass
+        '''Initialize the environment'''
+        self.state= 'initialize'
+        self.obs  = self.task.reset()[1]
+        self.obj_poses = self.get_poses()
     
     def get_poses(self, noisy=self.noisy):
-        '''
-        Returns the object poses dict for all objects '''
+        ''' Returns the object poses dict for all objects '''
         return self.pose_sensor.get_poses(noisy)
 
     def move(self, pose):
