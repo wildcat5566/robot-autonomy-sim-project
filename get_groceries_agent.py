@@ -14,6 +14,7 @@ class StandardAgent():
         self.env  = env
         self.task = task
         self.pose_sensor = pose_sensor
+        self.gripped = False
     
     # AGENT METHODS
     def move_to_safe_spot(self, obj):
@@ -24,7 +25,28 @@ class StandardAgent():
         # release the object
         pass
     
-    def move_to_cupboard(self, obj):
+    def move_obj_to_cupboard(self, obj):
+        success = grasp(obj)
+
+        # different waypoint for every object
+        #waypoint3 is default pre-cupboard pose
+        waypoint = 'waypoint3'
+        waypoint_pose = self.pose_sensor(waypoint)
+        if success:
+            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=True)
+
+        # waypoint4 is default cupboard pose
+        waypoint = 'waypoint4'
+        waypoint_pose = self.pose_sensor(waypoint)
+        if success:
+            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=True)
+
+        # release
+        if success: 
+            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=False)
+
+
+
         # grasp object
         # identify cupboard position
         # move to cupboard
@@ -35,17 +57,28 @@ class StandardAgent():
         pass
 
     def grasp(self, obj):
-        grasp_pose     = pose_sensor(obj)
-        pre_grasp_pose = get_new_offset_EE_position(position, quat, 0.05)
+
+
+        obj = obj + '_grasp_point'
+
+        offset  = 0.05 #soup
+
+        grasp_point     = self.pose_sensor(obj)
+
+        custom_offset_grasp_point = self.get_new_offset_EE_position(grasp_point[:3], grasp_point[3:], offset)
         gripper_close_pose = grasp_pose
 
-        move_to_pose(pre_grasp_pose)
-        move_to_pose(grasp_pose)
-        move_to_pose(gripper_close_pose)
-        
-        pass
+        success = self.move_to_pose(grasp_point[:3],grasp_point[3:],False)
+        if success:
+            success = self.move_to_pose(custom_offset_grasp_point[:3],custom_offset_grasp_point[3:],gripper=False,ignore_collision=True)
 
-    def move_to_pose(self,pos,quat,gripper):
+        if success:
+            success = self.move_to_pose(custom_offset_grasp_point[:3],custom_offset_grasp_point[3:],True)
+        
+        return success
+
+
+    def move_to_pose(self,pos,quat,gripper,ignore_collisions=False):
         # Given a position and orientation of the gripper, the agent moves the gripper to that pose
         # Inputs:
             # pos: 3x1 vector of x,y,z location in world frame
@@ -54,7 +87,7 @@ class StandardAgent():
         # Outputs: 
             # success: a boolean to represent path success
         
-        path = self.get_valid_path(pos,quat,gripper)
+        path = self.get_valid_path(pos,quat,gripper,ignore_collisions)
         success = self.execute_path(path)
         
         return success
