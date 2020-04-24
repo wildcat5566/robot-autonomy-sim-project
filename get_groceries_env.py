@@ -56,7 +56,7 @@ class GroceriesEnvironment():
         # environment setup
         self.action_mode = action_mode
         self.environment = Environment(action_mode)
-        self.agent       = agent
+        self.agent       = StandardAgent(self.environment, self.task, self.pose_sensor)
 
         # task setup
         self.task = self.environment.get_task(task)

@@ -1,25 +1,105 @@
 import numpy as np
 import scipy as sp
 
-
+# # steps to run this in Jupyterlab
+# action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION) # See rlbench/action_modes.py for other action modes
+# env         = Environment(action_mode, '', ObservationConfig(), False)
+# task        = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
+# pose_sensor = NoisyObjectPoseSensor(env)
+# agent = StandardAgent(env, task, pose_sensor)
 
 class StandardAgent():
 
-    def __init__(self):
+    def __init__(self,env,task,pose_sensor):
+        self.env  = env
+        self.task = task
+        self.pose_sensor = pose_sensor
+    
+    # AGENT METHODS
+    def move_to_safe_spot(self, obj):
+        # obj: string 'soup'
+        # identify safe spot for the object
+        # grasp object
+        # move the object
+        # release the object
+        pass
+    
+    def move_to_cupboard(self, obj):
+        # grasp object
+        # identify cupboard position
+        # move to cupboard
+        # release object
+        pass
+    
+    def push_obj_to_ledge(obj):
         pass
 
-    # tries to plan a path to the desired pose and quat
-    # INPUTS
-    # pose : 3x1 vector of x,y,z location in world frame
-    # quat : 4x1 vector of quaternion in world frame
-    # gripper : boolean (T = CLOSED, F = OPEN)
-    # ignore_collisions (T = ignore, F = don't ignore)
-    # OUTPUTS
-    # success : boolean (T = path found, F = path not found)
-    # path : array of steps to take (None if success == F)
-    def find_path(self,pose,quat,gripper,ignore_collisions):
-    	try:
-			path_class = env._robot.arm.get_path(position=pose,quaternion=quat,ignore_collisions=ignore_collisions)
+    def grasp(self, obj):
+        grasp_pose     = pose_sensor(obj)
+        pre_grasp_pose = get_new_offset_EE_position(position, quat, 0.05)
+        gripper_close_pose = grasp_pose
+
+        move_to_pose(pre_grasp_pose)
+        move_to_pose(grasp_pose)
+        move_to_pose(gripper_close_pose)
+        
+        pass
+
+    def move_to_pose(self,pos,quat,gripper):
+        # Given a position and orientation of the gripper, the agent moves the gripper to that pose
+        # Inputs:
+            # pos: 3x1 vector of x,y,z location in world frame
+            # quat : 4x1 vector of quaternion in world frame
+            # gripper : boolean (T = CLOSED, F = OPEN)
+        # Outputs: 
+            # success: a boolean to represent path success
+        
+        path = self.get_valid_path(pos,quat,gripper)
+        success = self.execute_path(path)
+        
+        return success
+
+    # HELPER METHODS ONLY USED BY THE AGENT------------------------------
+    
+    def get_valid_path(self,pos,quat,gripper,ignore_collisions=False,offset=0):
+        # Try to get to the specified pos  quat,and quaternion by checking 4 orientations of quaternion
+        # INPUTS
+            # pos  quat,: x,y,z of waypoint
+            # quat : quat of waypoint
+            # gripper : T = closed, F = open
+            # ignore_collisions : T = ignore, F = don't ignore
+            # offset : degrees to offset before trying 4 quat poses (not used yet...)
+        # OUTPUTS :
+            # success : bool
+        
+        test_quats = self.get_possible_rotations(quat,offset=0)
+        i=1
+
+        for q in test_quats:
+            success, path = self.find_path(pos,quat,q,gripper,ignore_collisions)
+            if success:
+                self.execute_path(path)
+                print('path found to quat', i)
+                break
+            else:
+                print('path not found to quat', i)
+            i+=1
+
+        return success
+
+    def find_path(self,pos,quat,gripper,ignore_collisions=False):
+    	# Tries to plan a path to the desired pos  quat,and quat
+        # INPUTS
+            # pos: 3x1 vector of x,y,z location in world frame
+            # quat : 4x1 vector of quaternion in world frame
+            # gripper : boolean (T = CLOSED, F = OPEN)
+            # ignore_collisions (T = ignore, F = don't ignore)
+        # OUTPUTS
+            # success : boolean (T = path found, F = path not found)
+            # path : array of steps to take (None if success == F)
+        
+        try:
+			path_class = self.env._robot.arm.get_path(position=pos,quaternion=quat,ignore_collisions=ignore_collisions)
 			path = path_class._path_points.reshape(-1,path_class._num_joints)
 			if gripper:
 					gripper_poses = np.zeros((path.shape[0],1))
@@ -31,27 +111,29 @@ class StandardAgent():
 			success = False
 			path = None 
 
-	return success, path
+	    return success, path
 
-	# executes a path
-	# INPUT
-	# path : array of joint positions returned by find_path
-	# path generated is either 50 steps (linear) or 300 steps (nonlinear)
 	def execute_path(self,path):
-		for pose in path:
-			obs, reward, terminate = task.step(pose)
+		# Executes a path
+        # INPUT
+            # path : array of joint positions returned by find_path
+            # path generated is either 50 steps (linear) or 300 steps (nonlinear)
+        for pose in path:
+			obs, reward, terminate = self.task.step(pose)
+        
+        return True
 
-	# get rotations about z in 90 degree increments
-	# INPUT
-	# quaternion : waypoint quaternion
-	# offset : how much off of 0 do we want to start doing the 90 degree transformations (for use if first try of this fxn returns no good paths)
-	# OUTPUT
-	# quats : 4 quaternions representing 0, 90, 180, 270 degree offset in Z from input quaternion
-	def get_possible_rotations(self,quaternion,offset=0):
-		quats = np.zeros((4,4))
-		quats[0] = quaternion
+	def get_possible_rotations(quat,offset=0):
+		# Get rotations about z in 90 degree increments
+        # INPUT
+            # quaternion : waypoint quaternion
+            # offset : how much off of 0 do we want to start doing the 90 degree transformations (for use if first try of this fxn returns no good paths)
+        # OUTPUT
+            # quats : 4 quaternions representing 0, 90, 180, 270 degree offset in Z from input quaternion
+        quats = np.zeros((4,4))
+		quats[0] = quat
 
-		matrix = R.from_quat(quaternion).as_matrix()
+		matrix = R.from_quat(quat).as_matrix()
 		ninety = R.from_rotvec(np.pi/2 + offset * np.array([0, 0, 1])).as_matrix()
 
 		for i in range(1,4):
@@ -60,46 +142,28 @@ class StandardAgent():
 
 		return quats
 
-	# try to get to the specified pose and quaternion by checking 4 orientations of quaternion
-	# INPUTS
-	# pose : x,y,z of waypoint
-	# quat : quat of waypoint
-	# gripper : T = closed, F = open
-	# ignore_collisions : T = ignore, F = don't ignore
-	# offset : degrees to offset before trying 4 quat poses (not used yet...)
-	# OUTPUTS :
-	# success : bool
-	def try_path(self,pose,quat,gripper,ignore_collisions,offset=0):
-		test_quats = self.get_possible_rotations(quat,offset=0)
-		i=1
-
-		for q in test_quats:
-			success, path = self.find_path(pose,q,gripper,ignore_collisions)
-			if success:
-				self.execute_path(path)
-				print('path found to quat', i)
-				break
-			else:
-				print('path not found to quat', i)
-			i+=1
-
-		return success
-
-	def quat_to_homo_trans_mat(self,quat_world):
+	def quat_to_homo_trans_mat(quat_world):
 	    A = np.eye(4)
 	    A[:3,:3] = R.from_quat(quat_world).as_matrix()
 	    return A
 
-	def find_can_pose(self,pose_world, quat_world, amount):
-	    print("where i am", pose_world)
-	    move_amount_along_z =  amount
-	    # create rotation matrix between world frame and can frame
-	    world2gripper        = quat_to_homo_trans_mat(quat_world)
-	    world2gripper[0:3,3] = pose_world
-	    # create translation vector in gripper frame
-	    translation_vec      = np.array([0, 0, move_amount_along_z, 0]).reshape(-1, 1)
+	def get_new_offset_EE_position(position, quat, offset_amount):
+	    # Move the EE along the z-xis by the specified offset_amount
+        # Inputs:
+            # pos  quat,: x,y,z of waypoint in world frame
+            # quat : quat of waypoint in world frame
+            # offset_amount : offset_amount in z
+        # Output:
+            # new_position : x,y,z of waypoint in world frame
+        	    
+        # create rotation matrix between world frame and can frame
+	    world2gripper        = quat_to_homo_trans_mat(quat)
+	    world2gripper[0:3,3] = position
+	    
+        # create translation vector in gripper frame
+	    translation_vec        = np.array([0, 0, offset_amount, 0]).reshape(-1, 1)
 	    translation_in_global  = world2gripper @ translation_vec
-	    newpose_world        = translation_in_global.flatten()[:3] + pose_world
-	    print("where i wanna go",newpose_world)
-	    return newpose_world
+	    new_position           = translation_in_global.flatten()[:3] + position
+
+	    return new_position
 
