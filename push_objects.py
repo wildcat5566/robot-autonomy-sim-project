@@ -193,10 +193,10 @@ if __name__ == "__main__":
 	agent = RandomAgent()
 	obj_pose_sensor = NoisyObjectPoseSensor(env)
 
-	state = 'push_object'
+	state = 'go_to_waypoint'
 	grasppoints = ['soup_grasp_point', 'sugar_grasp_point', 'coffee_grasp_point']
 	safeposes = ['soup_safe_pose', 'sugar_safe_pose', 'coffee_safe_pose']
-	waypoint = 'soup_grasp_point'
+	waypoint = 'coffee_safe_pose'
 
 	descriptions, obs = task.reset()
 	starting_pose = obs.gripper_pose
@@ -312,7 +312,7 @@ if __name__ == "__main__":
 			des_quat = destination[3:7]
 
 
-			if waypoint == grasppoints[obj_id]:
+			if waypoint == grasppoints[obj_id] or 'coffee_safe_pose':
 
 				quats = get_possible_rotations(des_quat)
 				i = 1
@@ -324,7 +324,7 @@ if __name__ == "__main__":
 					if success:
 						print("quat",i,"succeeded")
 						execute_path(path)
-						waypoint = 'waypoint2'
+						waypoint = 'waypoint2' #2
 						des_quat  = quat
 						break
 
@@ -334,26 +334,36 @@ if __name__ == "__main__":
 				if not success:
 					print("path to",waypoint,"not found")
 					state = 'shutdown'
-				else: 
+				"""else: 
 					offset_can_pose = find_can_pose(des_pose,des_quat)
 					success,path = find_path(offset_can_pose,des_quat,gripper=False,ignore_collisions=True)
 					if success:
 						execute_path(path)
-						waypoint = 'waypoint2'
+						waypoint = 'waypoint2' #2
 					else: 
 						print("can approach path not found")
-						state = 'shutdown'
-				#state = 'shutdown'
+						state = 'shutdown'"""
+				state = 'shutdown'
 
-			elif waypoint == 'waypoint2': #midpoint
+			"""elif waypoint == 'waypoint3': # 2 midpoint
 				success,path = success,path = find_path(des_pose,des_quat,gripper=True,ignore_collisions=True)
 				if success:
 					execute_path(path)
-					waypoint = safeposes[obj_id]
+					#waypoint = safeposes[obj_id]
+					waypoint = 'coffee_cupboard_pose'
 				else:
 					print('path not found')
 					state = 'shutdown'
-				#state = 'shutdown'
+
+			elif waypoint == 'coffee_cupboard_pose': # 2 midpoint
+				success,path = success,path = find_path(des_pose,des_quat,gripper=True,ignore_collisions=True)
+				if success:
+					execute_path(path)
+					waypoint = 'waypoint3'
+				else:
+					print('path not found')
+					state = 'shutdown'
+				
 
 			elif waypoint == safeposes[obj_id]:
 				success,path = success,path = find_path(des_pose,des_quat,gripper=True,ignore_collisions=False)
@@ -376,7 +386,7 @@ if __name__ == "__main__":
 					state = 'shutdown'
 				obj_id += 1
 				if obj_id == 3:
-					state = 'shutdown'
+					state = 'shutdown'"""
 
 
 
