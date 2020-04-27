@@ -90,13 +90,13 @@ class StandardAgent():
         waypoint_pose = self.pose_sensor.get_poses()[waypoint]
         if success:
             print("going to object safe spot")
-            success = self.move_closer_to_goal(waypoint_pose[:3],waypoint_pose[3:],gripper=True,ignore_collisions=False)
-            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=False)
+            success = self.move_closer_to_goal(waypoint_pose[:3],waypoint_pose[3:],gripper=True,ignore_collisions=True)
+            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=True,ignore_collisions=True)
         
         # release
         if success: 
             print("releasing")
-            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=False)
+            success = self.move_to_pose(waypoint_pose[:3],waypoint_pose[3:],gripper=False,ignore_collisions=True)
 
     def move_obj_to_cupboard(self, obj):
         
@@ -150,15 +150,15 @@ class StandardAgent():
             offset  = -0.05
             custom_offset_grasp_point = grasp_point
             grasp_point = self.get_new_offset_EE_position(grasp_point[:3], grasp_point[3:], offset)
-            ig_col_during_move_to_grasp = False
+            ig_col_during_move_to_grasp = True
         if obj == 'sugar':
             offset  = 0.00
-            ig_col_during_move_to_grasp = True  
+            ig_col_during_move_to_grasp = False  
             custom_offset_grasp_point = self.get_new_offset_EE_position(grasp_point[:3], grasp_point[3:], offset)
         
         # grasp step (first move closer to the goal)
-        success = self.move_closer_to_goal(grasp_point[:3], grasp_point[3:], gripper=False, 
-                                    ignore_collisions=False)
+        # success = self.move_closer_to_goal(grasp_point[:3], grasp_point[3:], gripper=False, 
+        #                             ignore_collisions=False)
         success = self.move_to_pose(grasp_point[:3], grasp_point[3:], gripper=False, 
                                     ignore_collisions=ig_col_during_move_to_grasp)
         print(obj + ' Pre-grasp done.')
@@ -210,7 +210,7 @@ class StandardAgent():
     def move_closer_to_goal(self,pos,quat,gripper,ignore_collisions=False):        
         
         pre_pos = np.copy(pos)
-        pre_pos[2] += 0.05
+        pre_pos[2] += 0.10
         pre_quat = np.array([1,0,0,0])
 
         return self.move_to_pose(pre_pos, pre_quat, gripper, ignore_collisions)
@@ -228,7 +228,7 @@ class StandardAgent():
         success, path = self.find_path(pos, quat, gripper, ignore_collisions)
 
         # if not success:
-        max_itr = 2
+        max_itr = 1
         itr = 0
         while not success and itr<max_itr:
             itr += 1
