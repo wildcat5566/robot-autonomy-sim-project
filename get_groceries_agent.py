@@ -178,7 +178,7 @@ class StandardAgent():
             offset = np.random.randint(-10, 10) #random offset is much smaller +- 10 degrees
 
             print("-------- Trying with offset: ",offset)
-            test_quats = get_possible_push_rotations(quat, offset) #0, 180
+            test_quats = self.get_possible_push_rotations(quat, offset) #0, 180
 
             i=1
             path = None
@@ -263,6 +263,23 @@ class StandardAgent():
 
         # then go to the final pose
         success, path = self.get_valid_path(pos,quat,gripper,ignore_collisions)
+        if success:
+            success = self.execute_path(path)
+
+        return success
+    
+    def move_to_push_pose(self,pos,quat,gripper,ignore_collisions=False):
+        # Given a position and orientation of the gripper, the agent moves the gripper to that pose
+        # Inputs:
+            # pos: 3x1 vector of x,y,z location in world frame
+            # quat : 4x1 vector of quaternion in world frame
+            # gripper : boolean (T = CLOSED, F = OPEN)
+        # Outputs: 
+            # success: a boolean to represent path success
+        # grpr_pose = self.env._robot.gripper.get_pose()
+
+        # then go to the final pose
+        success, path = self.get_valid_push_path(pos,quat,gripper,ignore_collisions)
         if success:
             success = self.execute_path(path)
 
