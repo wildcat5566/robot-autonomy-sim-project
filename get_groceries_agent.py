@@ -136,12 +136,65 @@ class StandardAgent():
         pass
 
     def get_push_point(self, gutter_pose, grasp_pose):
+        """
+        Input: gutter pose and grasp pose.
+        Goal: Push from other direction in 10 cm distance.
+        """
         dx = min(gutter_pose[0] - grasp_pose[0], 0)
         dy = gutter_pose[1] - grasp_pose[1]
         push_x = grasp_pose[0] - dx * (0.1/np.sqrt(dx**2 + dy**2)) 
         push_y = grasp_pose[1] - dy * (0.1/np.sqrt(dx**2 + dy**2))
         push_z = min(0.752 + 0.01, 0.752 + (grasp_pose[2] - 0.752) * 0.3)
-        return push_x, push_y, push_z
+    
+        quat = [0, 1, 0, 0] # y rotation is 180 deg (for gripper to point down)
+        z = np.arctan(dx / dy) + np.deg2rad(90.) # default gripper direction is perpendicular to pushing direction so rotate 90 degs
+        z_rot = np.matrix([[np.cos(z), -np.sin(z), 0.],
+                           [np.sin(z),  np.cos(z), 0.],
+                           [0.       ,         0., 1.]])
+    
+        mtx = R.from_quat(quat).as_matrix() @ z_rot
+        z_quat = R.from_matrix(mtx).as_quat()
+
+        return [push_x, push_y, push_z], z_quat
+    
+    def get_possible_push_rotations(self, quat, offset):
+        z_quats = np.zeros((2, 4),dtype=float)
+        for i in range(2): #only try 2 orientations
+            z = np.deg2rad(180*i + offset)
+            z_rot = np.matrix([[np.cos(z), -np.sin(z), 0.],
+                               [np.sin(z),  np.cos(z), 0.],
+                               [0.       ,         0., 1.]])
+            mtx = R.from_quat(quat).as_matrix() @ z_rot
+            z_quats[i] = R.from_matrix(mtx).as_quat()
+
+        return z_quats
+    
+    def get_valid_push_path(self, pos,quat,gripper,ignore_collisions=False,offset=0):
+        success, path = self.find_path(pos, quat, gripper, ignore_collisions)
+        max_itr = 1
+        itr = 0
+        while not success and itr<max_itr:
+            itr += 1
+            offset = np.random.randint(-10, 10) #random offset is much smaller +- 10 degrees
+
+            print("-------- Trying with offset: ",offset)
+            test_quats = get_possible_push_rotations(quat, offset) #0, 180
+
+            i=1
+            path = None
+            for q in test_quats:
+                success, path = self.find_path(pos, q, gripper, ignore_collisions)
+                if success:
+                    print('path found to quat', i)
+                    break
+                else:
+                    print('path not found to quat', i)
+                    i+=1
+        
+        if not success:
+            print('failed')
+        
+        return success, path
 
     def push_obj_to_ledge(self, obj):
         gutter_pose = self.pose_sensor.get_poses()['gutter_pose']
@@ -155,7 +208,7 @@ class StandardAgent():
                                     ignore_collisions=ig_col_during_move_to_grasp)        
 
         # push to gutter
-        success = self.move_to_pose(....)
+        #success = self.move_to_pose(....)
 
         pass
 
