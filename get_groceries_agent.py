@@ -135,7 +135,28 @@ class StandardAgent():
 
         pass
 
+    def get_push_point(self, gutter_pose, grasp_pose):
+        dx = min(gutter_pose[0] - grasp_pose[0], 0)
+        dy = gutter_pose[1] - grasp_pose[1]
+        push_x = grasp_pose[0] - dx * (0.1/np.sqrt(dx**2 + dy**2)) 
+        push_y = grasp_pose[1] - dy * (0.1/np.sqrt(dx**2 + dy**2))
+        push_z = min(0.752 + 0.01, 0.752 + (grasp_pose[2] - 0.752) * 0.3)
+        return push_x, push_y, push_z
+
     def push_obj_to_ledge(self, obj):
+        gutter_pose = self.pose_sensor.get_poses()['gutter_pose']
+        grasp_point = self.pose_sensor.get_poses()[obj+'_grasp_point']
+
+        push_pos = self.get_push_point(gutter_pose, grasp_point)
+
+        ############ make sure end effector is upright
+        # get to push pose
+        success = self.move_to_pose(push_pos, grasp_point[3:], gripper=False, 
+                                    ignore_collisions=ig_col_during_move_to_grasp)        
+
+        # push to gutter
+        success = self.move_to_pose(....)
+
         pass
 
     def grasp(self, obj):
