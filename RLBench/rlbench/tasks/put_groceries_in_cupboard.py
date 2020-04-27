@@ -7,19 +7,22 @@ from rlbench.backend.task import Task
 from rlbench.backend.conditions import DetectedCondition, NothingGrasped
 from rlbench.backend.spawn_boundary import SpawnBoundary
 
-# GROCERY_NAMES = [
-#     'crackers',
-#     'chocolate jello',
-#     'strawberry jello',
-#     'soup',
-#     'tuna',
-#     'spam',
-#     'coffee',
-#     'mustard',
-#     'sugar',
-# ]
-
-GROCERY_NAMES = ['soup','sugar','coffee']
+"""GROCERY_NAMES = [
+    'crackers',
+    'chocolate jello',
+    'strawberry jello',
+    'soup',
+    'tuna',
+    'spam',
+    'coffee',
+    'mustard',
+    'sugar',
+]"""
+GROCERY_NAMES=[
+    'soup',
+    'coffee',
+    'sugar',
+]
 
 
 class PutGroceriesInCupboard(Task):
@@ -32,6 +35,15 @@ class PutGroceriesInCupboard(Task):
         self.waypoint1 = Dummy('waypoint1')
         self.register_graspable_objects(self.groceries)
         self.boundary = SpawnBoundary([Shape('workspace')])
+
+        self.gutter = Shape('gutter')
+        self.eastwall = Shape('eastwall')
+        self.northwall = Shape('northwall')
+        self.southwall = Shape('southwall')
+        self.soup_safe_pose = Dummy('soup_safe_pose')
+        self.sugar_safe_pose = Dummy('sugar_safe_pose')
+        self.coffee_safe_pose = Dummy('coffee_safe_pose')
+        self.gutter_pose = Dummy('gutter_pose')
 
     def init_episode(self, index: int) -> List[str]:
         self.boundary.clear()
