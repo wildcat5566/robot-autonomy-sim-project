@@ -135,16 +135,17 @@ class StandardAgent():
 
         pass
 
-    def get_push_point(self, gutter_pose, grasp_pose):
+    def get_push_point(self, gutter_pose, grasp_pose, offset=0.1, height=0.3):
         """
         Input: gutter pose and grasp pose.
         Goal: Push from other direction in 10 cm distance.
         """
+
         dx = min(gutter_pose[0] - grasp_pose[0], 0)
         dy = gutter_pose[1] - grasp_pose[1]
-        push_x = grasp_pose[0] - dx * (0.1/np.sqrt(dx**2 + dy**2)) 
-        push_y = grasp_pose[1] - dy * (0.1/np.sqrt(dx**2 + dy**2))
-        push_z = min(0.752 + 0.01, 0.752 + (grasp_pose[2] - 0.752) * 0.3)
+        push_x = grasp_pose[0] - dx * (offset/np.sqrt(dx**2 + dy**2)) 
+        push_y = grasp_pose[1] - dy * (offset/np.sqrt(dx**2 + dy**2))
+        push_z = max(0.752 + 0.01, 0.752 + (grasp_pose[2] - 0.752) * height)
     
         quat = [0, 1, 0, 0] # y rotation is 180 deg (for gripper to point down)
         z = np.arctan(dx / dy) + np.deg2rad(90.) # default gripper direction is perpendicular to pushing direction so rotate 90 degs
@@ -392,7 +393,7 @@ class StandardAgent():
         quats[0,:] = quat
 
         matrix = R.from_quat(quat).as_matrix()
-        ninety = R.from_rotvec((np.pi/2 + offset) * np.array([1, 0, 0])).as_matrix()
+        ninety = R.from_rotvec((np.pi/2 + np.deg2rad(offset)) * np.array([1, 0, 0])).as_matrix()
 
         for i in range(1,4):
             matrix = np.dot(matrix, ninety)
