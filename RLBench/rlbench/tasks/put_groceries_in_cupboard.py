@@ -36,12 +36,18 @@ class PutGroceriesInCupboard(Task):
         self.register_graspable_objects(self.groceries)
         self.boundary = SpawnBoundary([Shape('workspace')])
 
-        self.gutter = Shape('gutter')
-        # self.ramp = Shape('ramp')
-        self.eastwall = Shape('eastwall')
-        self.northwall = Shape('northwall')
-        self.southwall = Shape('southwall')
+        self.eastwall = Shape('eastpark')
+        self.westwall = Shape('westpark')
+        self.southwall = Shape('southpark')
+        self.northwall = Shape('northpark')
 
+        self.eastramp = Dummy('eastramp')
+        self.westramp = Dummy('westramp')
+        self.southramp = Dummy('southramp')
+        self.norththramp = Dummy('northramp')
+
+        self.gutter = Shape('gutter')
+        self.smallwall = Shape('smallwall')
         self.gutter_pose = Dummy('gutter_pose')
 
         self.soup_safe_pose = Dummy('soup_safe_pose')

@@ -59,8 +59,14 @@ class BoundaryObject(object):
              maxy, minz, maxz) = boundary.get_model_bounding_box()
         else:
             minx, maxx, miny, maxy, minz, maxz = boundary.get_bounding_box()
-        self._boundary_bbox = BoundingBox(minx, maxx, miny, maxy, minz, maxz)
+        minx += 0.1
+        miny += 0.15
+        maxx -= 0.1
+        maxy -= 0.15
+        #print(minx, maxx, miny, maxy, minz, maxz)
 
+        self._boundary_bbox = BoundingBox(minx, maxx, miny, maxy, minz, maxz)
+        
         height = np.abs(maxz - minz)
         if height == 0:
             height = 1.0
@@ -69,6 +75,7 @@ class BoundaryObject(object):
 
     def _get_position_within_boundary(self, obj: Object, obj_bbox: BoundingBox
                                       ) -> List[float]:
+        #print(self._boundary_bbox.min_x)
         x = np.random.uniform(
             self._boundary_bbox.min_x + np.abs(obj_bbox.min_x),
             self._boundary_bbox.max_x - np.abs(obj_bbox.max_x))

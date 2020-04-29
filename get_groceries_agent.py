@@ -135,30 +135,34 @@ class StandardAgent():
 
         pass
 
-    def get_push_point(self, gutter_pose, grasp_pose, offset=0.1, height=0.3):
-        """
-        Input: gutter pose and grasp pose.
-        Goal: Push from other direction in 10 cm distance.
-        """
+    def get_push_point(self, ramp, ramp_pose, grasp_pose, offset=0.2):
+        if ramp  == 'northramp':
+            push_x = grasp_pose[0] - offset
+            push_y = grasp_pose[1]
+            push_z = ramp_pose[2]
+            quat = [0, 1, 0, 0] # y rotation is 180 deg (for gripper to point down)
+        
+        elif ramp  == 'southramp':
+            push_x = grasp_pose[0] + offset
+            push_y = grasp_pose[1]
+            push_z = ramp_pose[2]
+            quat = [0, 1, 0, 0] # y rotation is 180 deg (for gripper to point down)
+    
+        elif ramp == 'eastramp':
+            push_x = grasp_pose[0]
+            push_y = grasp_pose[1] + offset
+            push_z = ramp_pose[2] #0.752 + (grasp_pose[2] - 0.752) * height
+            quat = [-0.7071068, 0.7071068, 0, 0] # y rotation is 180 deg (for gripper to point down)
+        
+        elif ramp == 'westramp':
+            push_x = grasp_pose[0]
+            push_y = grasp_pose[1] - offset
+            push_z = ramp_pose[2] #0.752 + (grasp_pose[2] - 0.752) * height
+            quat = [-0.7071068, 0.7071068, 0, 0] # y rotation is 180 deg (for gripper to point down)
 
-        dx = min(gutter_pose[0] - grasp_pose[0], 0)
-        dy = gutter_pose[1] - grasp_pose[1]
-        push_x = grasp_pose[0] - dx * (offset/np.sqrt(dx**2 + dy**2)) 
-        push_y = grasp_pose[1] - dy * (offset/np.sqrt(dx**2 + dy**2))
-        push_z = max(0.752 + 0.01, 0.752 + (grasp_pose[2] - 0.752) * height)
+        return [push_x, push_y, push_z], quat
     
-        quat = [0, 1, 0, 0] # y rotation is 180 deg (for gripper to point down)
-        z = np.arctan(dx / dy) + np.deg2rad(90.) # default gripper direction is perpendicular to pushing direction so rotate 90 degs
-        z_rot = np.matrix([[np.cos(z), -np.sin(z), 0.],
-                           [np.sin(z),  np.cos(z), 0.],
-                           [0.       ,         0., 1.]])
-    
-        mtx = R.from_quat(quat).as_matrix() @ z_rot
-        z_quat = R.from_matrix(mtx).as_quat()
-
-        return [push_x, push_y, push_z], z_quat
-    
-    def get_possible_push_rotations(self, quat, offset):
+    """def get_possible_push_rotations(self, quat, offset):
         z_quats = np.zeros((2, 4),dtype=float)
         for i in range(2): #only try 2 orientations
             z = np.deg2rad(180*i + offset)
@@ -168,50 +172,65 @@ class StandardAgent():
             mtx = R.from_quat(quat).as_matrix() @ z_rot
             z_quats[i] = R.from_matrix(mtx).as_quat()
 
-        return z_quats
+        return z_quats"""
     
-    def get_valid_push_path(self, pos,quat,gripper,ignore_collisions=False,offset=0):
+    def get_valid_push_path(self, ramp, ramp_pos, pos,quat,gripper,ignore_collisions=False,offset=0.2):
         success, path = self.find_path(pos, quat, gripper, ignore_collisions)
-        max_itr = 1
+    
+        #First sample linear offsets
+        max_itr = 10
         itr = 0
         while not success and itr<max_itr:
             itr += 1
-            offset = np.random.randint(-10, 10) #random offset is much smaller +- 10 degrees
-
-            print("-------- Trying with offset: ",offset)
-            test_quats = self.get_possible_push_rotations(quat, offset) #0, 180
-
-            i=1
-            path = None
-            for q in test_quats:
-                success, path = self.find_path(pos, q, gripper, ignore_collisions)
-                if success:
-                    print('path found to quat', i)
-                    break
-                else:
-                    print('path not found to quat', i)
-                    i+=1
+            new_offset = offset - (np.random.random())*0.1 #~-10 centimeters
+            print("Trying push distance: {:.4f}".format(new_offset))
+            pos, q = self.get_push_point(ramp, ramp_pos, pos, offset=new_offset) #grasppoint
+            success, path = self.find_path(pos, q, gripper, ignore_collisions)
+        if success:
+            return success, path
         
         if not success:
             print('failed')
         
         return success, path
+    
+    def find_closest_ramp(self, obj, obj_poses):
+        target_pos = obj_poses[obj]
+        closest_ramp = None
+        mindist = 100.0
+        for ramp in ['northramp', 'southramp', 'eastramp', 'westramp']:
+            ramp_pos = obj_poses[ramp]
+            dist = np.sum((ramp_pos[:3] - target_pos[:3])**2)
+            if dist < mindist:
+                mindist = dist
+                closest_ramp = ramp
+            
+        return closest_ramp, obj_poses[closest_ramp]
+    
+    def move_to_push_pose(self, ramp, ramp_pos, pos,quat,gripper,ignore_collisions=False,offset=0.2):
+        success, path = self.get_valid_push_path(ramp, ramp_pos, pos,quat,gripper,ignore_collisions, offset=offset)
+        if success:
+            success = self.execute_path(path)
 
-    def push_obj_to_ledge(self, obj):
-        gutter_pose = self.pose_sensor.get_poses()['gutter_pose']
-        grasp_point = self.pose_sensor.get_poses()[obj+'_grasp_point']
+        return success
 
-        push_pos = self.get_push_point(gutter_pose, grasp_point)
+    def push_obj_to_ledge(self, obj, obj_poses, offset=0.2):
+        ramp, ramp_pos = self.find_closest_ramp(obj, obj_poses)
+        print(ramp)
+        grasp_point = obj_poses[obj]
+        push_pos, push_quat = self.get_push_point(ramp, ramp_pos, grasp_point, offset=offset)
 
-        ############ make sure end effector is upright
-        # get to push pose
-        success = self.move_to_pose(push_pos, grasp_point[3:], gripper=False, 
-                                    ignore_collisions=ig_col_during_move_to_grasp)        
+        # Move to 30 cm above pre push pose
+        self.move_to_pose([push_pos[0], push_pos[1],push_pos[2]+0.3],push_quat,gripper=False,ignore_collisions=False)
 
-        # push to gutter
-        #success = self.move_to_pose(....)
+        # Move to pre push pose
+        self.move_to_push_pose(ramp, ramp_pos, push_pos, push_quat, gripper=False,ignore_collisions=False, offset=offset)
 
-        pass
+        # Push object
+        if ramp in ['eastramp', 'westramp']:
+            self.move_to_pose([push_pos[0], ramp_pos[1], push_pos[2]],push_quat,gripper=False,ignore_collisions=True)
+        else:
+            self.move_to_pose([ramp_pos[0], push_pos[1], push_pos[2]],push_quat,gripper=False,ignore_collisions=True)
 
     def grasp(self, obj):
         
@@ -264,23 +283,6 @@ class StandardAgent():
 
         # then go to the final pose
         success, path = self.get_valid_path(pos,quat,gripper,ignore_collisions)
-        if success:
-            success = self.execute_path(path)
-
-        return success
-    
-    def move_to_push_pose(self,pos,quat,gripper,ignore_collisions=False):
-        # Given a position and orientation of the gripper, the agent moves the gripper to that pose
-        # Inputs:
-            # pos: 3x1 vector of x,y,z location in world frame
-            # quat : 4x1 vector of quaternion in world frame
-            # gripper : boolean (T = CLOSED, F = OPEN)
-        # Outputs: 
-            # success: a boolean to represent path success
-        # grpr_pose = self.env._robot.gripper.get_pose()
-
-        # then go to the final pose
-        success, path = self.get_valid_push_path(pos,quat,gripper,ignore_collisions)
         if success:
             success = self.execute_path(path)
 
